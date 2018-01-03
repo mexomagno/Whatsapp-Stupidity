@@ -30,15 +30,15 @@ class PromptHistory:
 		""" Get entry before the current """
 		# If empty, return none
 		if len(self._buffer) == 0:
-			return None
-		# If already at the end, return none
+			return self._held_input
+		# If already at the end
 		if self._peek_index < 0:
-			return None
+			return self._buffer[0]
 		# Peek back
 		self._peek_index -= 1
-		# If peek index in the end, return None
+		# If peek index in the end
 		if self._peek_index < 0:
-			return None
+			return self._buffer[0]
 		return self._buffer[self._peek_index]
 
 	def peek_newer(self):
@@ -65,7 +65,8 @@ class PromptHistory:
 														content=self._buffer[i], 
 														arrow="\t<------- peek index" if (i == self._peek_index) else "")
 		if self._peek_index < 0 or  self._peek_index >= len(self._buffer):
-			print "\tPeek index: {position}".format(position="START" if self._peek_index < 0 else "END")
+			print "Peek index:\t{position}".format(position="START" if self._peek_index < 0 else "END")
+		print "Held text:\t{}".format(self._held_input)
 
 def test_history():
 	print "History tester"
@@ -144,17 +145,16 @@ def main():
 		key = getkey()
 		if key == keys.UP:
 			# HISTORY UP
-			# save current entry on current history position
+			# If not peeking, store current
 			if not history.is_peeking():
-				peek_value = history.peek_older()
-				if peek_value is not None:
-					history.hold_current(input_string)
-					input_string = peek_value
-				continue
+				history.hold_current(input_string)
+			peek_value = history.peek_older()
+			if peek_value is not None:
+				input_string = peek_value
+			continue
 		elif key == keys.DOWN:
 			# HISTORY DOWN
-			if history.is_peeking():
-				input_string = history.peek_newer()
+			input_string = history.peek_newer()
 		elif key == keys.BACKSPACE:
 			# DELETE LAST
 			if len(input_string) > 0:
@@ -176,9 +176,12 @@ def main():
 				print "You must enter something!"
 				continue
 			print "\nYour text: '{}'".format(input_string)
+			history.push(input_string)
 			output = add_format(input_string, copy_to_clipboard=True)
 			print "Success! Just paste somewhere"
 			input_string = ""
+			continue
+		elif key == keys.LEFT or key == keys.RIGHT:
 			continue
 		else:
 			try:
