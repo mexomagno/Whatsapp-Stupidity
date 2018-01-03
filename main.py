@@ -11,6 +11,7 @@ class PromptHistory:
 		self._buffer = list()
 		self._max_buffer_size = buffer_size
 		self._peek_index = -1
+		self._held_input = ""
 
 	def push(self, s):
 		""" Put a string at the end of the history """
@@ -43,13 +44,19 @@ class PromptHistory:
 	def peek_newer(self):
 		""" Get entry after the current """
 		if len(self._buffer) == 0:
-			return None
+			return self._held_input
 		if self._peek_index >= len(self._buffer):
-			return None
+			return self._held_input
 		self._peek_index += 1
 		if self._peek_index >= len(self._buffer):
-			return None
+			return self._held_input
 		return self._buffer[self._peek_index]
+
+	def hold_current(self, s):
+		self._held_input = s
+
+	def is_peeking(self):
+		return len(self._buffer) > 0 and 0 <= self._peek_index < len(self._buffer)
 
 	def print_contents(self):
 		print "History contents: "
@@ -136,11 +143,18 @@ def main():
 		sys.stdout.flush()
 		key = getkey()
 		if key == keys.UP:
-			pass
 			# HISTORY UP
+			# save current entry on current history position
+			if not history.is_peeking():
+				peek_value = history.peek_older()
+				if peek_value is not None:
+					history.hold_current(input_string)
+					input_string = peek_value
+				continue
 		elif key == keys.DOWN:
-			pass
 			# HISTORY DOWN
+			if history.is_peeking():
+				input_string = history.peek_newer()
 		elif key == keys.BACKSPACE:
 			# DELETE LAST
 			if len(input_string) > 0:
