@@ -10,34 +10,53 @@ class PromptHistory:
 	def __init__(self, buffer_size=100):
 		self._buffer = list()
 		self._max_buffer_size = buffer_size
-		self._peek_index = 0
-		self.reset_peek_index()
+		self._peek_index = -1
 
 	def push(self, s):
 		""" Put a string at the end of the history """
 		print "pushing '{}'".format(s)
-		pass
+		# push to list
+		self._buffer.append(s)
+		# If necessary, delete first
+		if len(self._buffer) > self._max_buffer_size:
+			self._buffer.pop(0)
+		# Set peek index to last one
+		self._peek_index = len(self._buffer)
 
 	def peek_older(self):
 		""" Get entry before the current """
-		print "peeking older"
-		pass
+		# If empty, return none
+		if len(self._buffer) == 0:
+			return None
+		# If already at the end, return none
+		if self._peek_index < 0:
+			return None
+		# Peek back
+		self._peek_index -= 1
+		# If peek index in the end, return None
+		if self._peek_index < 0:
+			return None
+		return self._buffer[self._peek_index]
 
 	def peek_newer(self):
 		""" Get entry after the current """
-		print "peeking newer"
-		pass
-
-	def reset_peek_index(self):
-		""" Return peek index to the last one """
-		print "Reseting peek index"
-		self._peek_index = len(list()) - 1
+		if len(self._buffer) == 0:
+			return None
+		if self._peek_index >= len(self._buffer):
+			return None
+		self._peek_index += 1
+		if self._peek_index >= len(self._buffer):
+			return None
+		return self._buffer[self._peek_index]
 
 	def print_history(self):
 		print "History contents: "
 		for i in range(len(self._buffer)):
-			print "\t{index}:\t{content}{arrow}".format(i, self._buffer[i], "<------- peek index" if (i == self._peek_index) else "")
-
+			print "\t{index}:\t{content}{arrow}".format(index=i, 
+														content=self._buffer[i], 
+														arrow="\t<------- peek index" if (i == self._peek_index) else "")
+		if self._peek_index < 0 or  self._peek_index >= len(self._buffer):
+			print "\tPeek index: {position}".format(position="START" if self._peek_index < 0 else "END")
 
 def test_history():
 	print "History tester"
@@ -47,6 +66,12 @@ def test_history():
 	history = PromptHistory(buffer_size=buffer_size)
 	input_str = ""
 
+	history.push("Esto")
+	history.push("es")
+	history.push("una")
+	history.push("prueba")
+	history.push("del")
+	history.push("historial")
 	history.print_history()
 	while True:
 		print "Press up or down keys: "
@@ -54,8 +79,12 @@ def test_history():
 		key = getkey()
 		if key == keys.UP:
 			print "UP"
+			content = history.peek_older()
+			print "Content: {}".format(content if content is not None else "START")
 		if key == keys.DOWN:
 			print "DOWN"
+			content = history.peek_newer()
+			print "Content: {}".format(content if content is not None else "END")
 		if key == 'q':
 			break
 	print "quit"
