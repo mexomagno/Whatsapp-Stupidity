@@ -14,7 +14,9 @@ class PromptHistory:
 
 	def push(self, s):
 		""" Put a string at the end of the history """
-		print "pushing '{}'".format(s)
+		# Avoid push if equals to the last entry
+		if len(self._buffer) > 0 and self._buffer[-1] == s:
+			return
 		# push to list
 		self._buffer.append(s)
 		# If necessary, delete first
@@ -49,7 +51,7 @@ class PromptHistory:
 			return None
 		return self._buffer[self._peek_index]
 
-	def print_history(self):
+	def print_contents(self):
 		print "History contents: "
 		for i in range(len(self._buffer)):
 			print "\t{index}:\t{content}{arrow}".format(index=i, 
