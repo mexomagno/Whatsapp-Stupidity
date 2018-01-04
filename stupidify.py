@@ -118,12 +118,18 @@ def add_format(input_string, copy_to_clipboard=True):
 		pyperclip.copy('{}'.format(output))
 	return output
 
-def quit():
-	print "\nQuitting..."
+def quit(message=None):
+	if message is not None:
+		print "{}".format(message)
 	sys.exit(0)
 
 def main():
-	# get input text
+
+	success_msg = "Success! Ctrl+V in whatsapp web to paste"
+	enter_string_prompt = "Your text here (Ctrl+D or ESC to exit) >>> "
+	empty_input_error_msg = "You must enter something!"
+
+	# Check if there's text in arguments
 	input_string = ""
 	for i in range(1, len(sys.argv)):
 		input_string += " {}".format(sys.argv[i])
@@ -131,14 +137,11 @@ def main():
 	if input_string != "":
 		# Convert and exit
 		output = add_format(input_string)
-		print "Your new text is in the clipboard!"
-		print "Output is: {}".format(output)		
-		sys.exit()
+		quit(success_msg)
 
 	# Convert infinitely in a loop
 	# create history
 	history = PromptHistory(10)
-	enter_string_prompt = "Your text here (ctrl+D to exit) >>> "
 	while True:
 		sys.stdout.write("\r{prompt}{input_string} \b\033[K".format(prompt=enter_string_prompt, input_string=input_string))
 		sys.stdout.flush()
@@ -186,12 +189,11 @@ def main():
 		elif key == keys.ENTER:
 			# PROCESS
 			if len(input_string) == 0:
-				print "You must enter something!"
 				continue
 			print "\nYour text: '{}'".format(input_string)
 			history.push(input_string)
 			output = add_format(input_string, copy_to_clipboard=True)
-			print "Success! Just paste somewhere"
+			print success_msg
 			input_string = ""
 		elif key == keys.LEFT or key == keys.RIGHT:
 			pass
