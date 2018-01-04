@@ -1,7 +1,7 @@
 # Whatsapp-Stupidity
 Completely useless random text formatting for whatsapp web messages.
 
-Whatsapp supports mild formatting, such as **bold**, _italic_ and ~~strikeout~~...
+Whatsapp supports mild formatting, such as **bold**, _italics_ and ~~strikeout~~...
 Then why not write _every single character_ with format!
 
 There's no doubt "hello world" looks better as "_h_ **e** ~~l~~ l _o_   ~~w~~ o _r_ **l** ~~d~~" :wink:
@@ -12,9 +12,9 @@ There's no doubt "hello world" looks better as "_h_ **e** ~~l~~ l _o_   ~~w~~ o 
 #### Arguments mode
 
 ```shell
-$ ./stupidify "hello world"
+$ ./stupidify.py "hello world"
 Success! Ctrl+V in whatsapp web to paste  # _h_ *e* ~l~ l _o_   ~w~ o _r_ *l* ~d~
-$ ./stupidify hello world
+$ ./stupidify.py hello world
 Success! Ctrl+V in whatsapp web to paste  #  _h_ *e* ~l~ l _o_   ~w~ o _r_ *l* ~d~
 $
 ```
@@ -22,7 +22,7 @@ $
 #### Prompt mode
 
 ```shell
-$ ./stupidify
+$ ./stupidify.py
 Your text here (Ctrl+D or ESC to exit) >>> hello world  # Enter
 Your text: 'hello world'
 Success! Ctrl+V in whatsapp web to paste  # _h_ *e* ~l~ l _o_   ~w~ o _r_ *l* ~d~
