@@ -8,36 +8,65 @@ class PromptHistory:
 	""" Represents a bash-like history record """
 
 	def __init__(self, buffer_size=100):
+		""" Creates a new prompt history with a fixed capacity """
+		# history lines container
 		self._buffer = list()
+		# max entries
 		self._max_buffer_size = buffer_size
+		# navigation through entries
+		# Position len(_buffer) means the current last entry
 		self._peek_index = 0
-		self.reset_peek_index()
+		# last inputted line to store while peeking lines
+		self._held_input = None
 
 	def push(self, s):
 		""" Put a string at the end of the history """
-		print "pushing '{}'".format(s)
-		pass
+		# Avoid push if equals to the last entry
+		if len(self._buffer) > 0 and self._buffer[-1] == s:
+			return
+		# push to list
+		self._buffer.append(s)
+		# If necessary, delete first
+		if len(self._buffer) > self._max_buffer_size:
+			self._buffer.pop(0)
+		# Set peek index to the end of the buffer
+		self._peek_index = len(self._buffer)
 
 	def peek_older(self):
 		""" Get entry before the current """
-		print "peeking older"
-		pass
+		# If empty, return the current held input
+		if len(self._buffer) == 0:
+			return self._held_input
+		# Peek older. When on top, always return the first entry
+		self._peek_index = max(0, self._peek_index - 1)
+		return self._buffer[self._peek_index]
 
 	def peek_newer(self):
 		""" Get entry after the current """
-		print "peeking newer"
-		pass
+		# If empty, return the current held entry
+		if len(self._buffer) == 0:
+			return self._held_input
+		# Peek newer. Wnen overflow, return the held input
+		self._peek_index = min(len(self._buffer), self._peek_index + 1)
+		if self._peek_index == len(self._buffer):
+			return self._held_input
+		return self._buffer[self._peek_index]
 
-	def reset_peek_index(self):
-		""" Return peek index to the last one """
-		print "Reseting peek index"
-		self._peek_index = len(list()) - 1
+	def hold_current(self, s):
+		self._held_input = s
 
-	def print_history(self):
+	def is_peeking(self):
+		return len(self._buffer) > 0 and self._peek_index < len(self._buffer)
+
+	def print_contents(self):
 		print "History contents: "
 		for i in range(len(self._buffer)):
-			print "\t{index}:\t{content}{arrow}".format(i, self._buffer[i], "<------- peek index" if (i == self._peek_index) else "")
-
+			print "\t{index}:\t{content}{arrow}".format(index=i, 
+														content=self._buffer[i], 
+														arrow="\t<------- peek index" if (i == self._peek_index) else "")
+		if self._peek_index < 0 or  self._peek_index >= len(self._buffer):
+			print "Peek index:\t{position}".format(position="START" if self._peek_index < 0 else "END")
+		print "Held text:\t{}".format(self._held_input)
 
 def test_history():
 	print "History tester"
@@ -47,6 +76,12 @@ def test_history():
 	history = PromptHistory(buffer_size=buffer_size)
 	input_str = ""
 
+	history.push("Esto")
+	history.push("es")
+	history.push("una")
+	history.push("prueba")
+	history.push("del")
+	history.push("historial")
 	history.print_history()
 	while True:
 		print "Press up or down keys: "
@@ -54,14 +89,18 @@ def test_history():
 		key = getkey()
 		if key == keys.UP:
 			print "UP"
+			content = history.peek_older()
+			print "Content: {}".format(content if content is not None else "START")
 		if key == keys.DOWN:
 			print "DOWN"
+			content = history.peek_newer()
+			print "Content: {}".format(content if content is not None else "END")
 		if key == 'q':
 			break
 	print "quit"
 
 
-def add_format(input_string):
+def add_format(input_string, copy_to_clipboard=True):
 	output = ""
 	formatting = "_*~ "
 	format_index = 0
@@ -75,7 +114,8 @@ def add_format(input_string):
 				formatting=(formatting[format_index] if formatting[format_index] != " " else ""),
 				letter=letter)
 		format_index = (format_index + 1 ) % len(formatting)
-	pyperclip.copy('{}'.format(output))
+	if copy_to_clipboard:
+		pyperclip.copy('{}'.format(output))
 	return output
 
 def quit():
@@ -96,33 +136,101 @@ def main():
 		sys.exit()
 
 	# Convert infinitely in a loop
+	# create history
+	history = PromptHistory(10)
+	enter_string_prompt = "Your text here (ctrl+D to exit) >>> "
 	while True:
-		try:
-			input_string = raw_input("Your text here (ctrl+D to exit): ")
-		except KeyboardInterrupt:
-			quit()
-		except EOFError:
-			quit()
-		if len(input_string) == 0:
-			print "You must enter something"
+		sys.stdout.write("\r{prompt}{input_string} \b\033[K".format(prompt=enter_string_prompt, input_string=input_string))
+		sys.stdout.flush()
+		key = getkey()
+		if key == keys.UP:
+			# HISTORY UP
+			currently_peeking = history.is_peeking()
+			peek_value = history.peek_older()
+			if peek_value is not None:
+				# If not peeking, store current
+				if not currently_peeking:
+					history.hold_current(input_string)
+				input_string = peek_value
 			continue
-		output = add_format(input_string)
-		print "Success! Just paste somewhere"
+		elif key == keys.DOWN:
+			# HISTORY DOWN
+			peek_value = history.peek_newer()
+			if peek_value is not None:
+				if peek_value != input_string:
+					input_string = peek_value 
+		elif key == keys.BACKSPACE:
+			# DELETE LAST
+			if len(input_string) > 0:
+				input_string = input_string[:len(input_string)-1]
+		elif key == keys.CTRL_V:
+			# PASTE
+			# read from clipboard
+			clipboard = pyperclip.paste()
+			try:
+				clipboard.decode("ascii")
+			except UnicodeDecodeError as e:
+				# Wrong contents on clipboard. Ignore
+				continue
+			# Append to current input
+			input_string += clipboard
+		# elif key == keys.CTRL_DELETE:
+		# 	# Delete by word
+		# 	if len(input_string) > 0:
+		# 		input_string = input_string.rsplit(" ", 1)[0] + " "
+		# 		if input_string == " ":
+		# 			input_string = ""
+		elif key == keys.CTRL_D or key == keys.ESC or key == keys.CTRL_C:
+			print "\nQuitting..."
+			sys.exit(0)
+		elif key == keys.ENTER:
+			# PROCESS
+			if len(input_string) == 0:
+				print "You must enter something!"
+				continue
+			print "\nYour text: '{}'".format(input_string)
+			history.push(input_string)
+			output = add_format(input_string, copy_to_clipboard=True)
+			print "Success! Just paste somewhere"
+			input_string = ""
+		elif key == keys.LEFT or key == keys.RIGHT:
+			pass
+		else:
+			# Remove tildes
+			if key in u"áãâàä":
+				key = "a"
+			elif key in u"éẽêèë":
+				key = "e"
+			elif key in u"íĩîìï":
+				key = "i"
+			elif key in u"óõôòö":
+				key = "o"
+			elif key in u"úũûùü":
+				key = "u"
+			else:
+				pass
 
+			try:
+				key = key.decode("ascii")
+			except UnicodeDecodeError as e:
+				# Weird symbol, just ignore
+				continue
+			except UnicodeEncodeError as e:
+				continue
+			# Normal character
+			input_string += key
 
 if __name__ == "__main__":
-	# main()
-	test_history()
+	main()
 
 
 
 """
 TODO: 
-	- Fix tildes
-	- Add history (bash-like)
 	- Randomize format selection
 	- Add extra fuck-up
 		* Uppercases
 		* Replace by similar characters (A->4, E->3...)
+	- Fix line when exceeds rightmost character
 
 """
