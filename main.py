@@ -231,5 +231,6 @@ TODO:
 	- Add extra fuck-up
 		* Uppercases
 		* Replace by similar characters (A->4, E->3...)
+	- Fix line when exceeds rightmost character
 
 """
