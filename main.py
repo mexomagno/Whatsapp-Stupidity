@@ -8,10 +8,16 @@ class PromptHistory:
 	""" Represents a bash-like history record """
 
 	def __init__(self, buffer_size=100):
+		""" Creates a new prompt history with a fixed capacity """
+		# history lines container
 		self._buffer = list()
+		# max entries
 		self._max_buffer_size = buffer_size
-		self._peek_index = -1
-		self._held_input = ""
+		# navigation through entries
+		# Position len(_buffer) means the current last entry
+		self._peek_index = 0
+		# last inputted line to store while peeking lines
+		self._held_input = None
 
 	def push(self, s):
 		""" Put a string at the end of the history """
@@ -23,32 +29,26 @@ class PromptHistory:
 		# If necessary, delete first
 		if len(self._buffer) > self._max_buffer_size:
 			self._buffer.pop(0)
-		# Set peek index to last one
+		# Set peek index to the end of the buffer
 		self._peek_index = len(self._buffer)
 
 	def peek_older(self):
 		""" Get entry before the current """
-		# If empty, return none
+		# If empty, return the current held input
 		if len(self._buffer) == 0:
 			return self._held_input
-		# If already at the end
-		if self._peek_index < 0:
-			return self._buffer[0]
-		# Peek back
-		self._peek_index -= 1
-		# If peek index in the end
-		if self._peek_index < 0:
-			return self._buffer[0]
+		# Peek older. When on top, always return the first entry
+		self._peek_index = max(0, self._peek_index - 1)
 		return self._buffer[self._peek_index]
 
 	def peek_newer(self):
 		""" Get entry after the current """
+		# If empty, return the current held entry
 		if len(self._buffer) == 0:
 			return self._held_input
-		if self._peek_index >= len(self._buffer):
-			return self._held_input
-		self._peek_index += 1
-		if self._peek_index >= len(self._buffer):
+		# Peek newer. Wnen overflow, return the held input
+		self._peek_index = min(len(self._buffer), self._peek_index + 1)
+		if self._peek_index == len(self._buffer):
 			return self._held_input
 		return self._buffer[self._peek_index]
 
@@ -56,7 +56,7 @@ class PromptHistory:
 		self._held_input = s
 
 	def is_peeking(self):
-		return len(self._buffer) > 0 and 0 <= self._peek_index < len(self._buffer)
+		return len(self._buffer) > 0 and self._peek_index < len(self._buffer)
 
 	def print_contents(self):
 		print "History contents: "
@@ -140,21 +140,25 @@ def main():
 	history = PromptHistory(10)
 	enter_string_prompt = "Your text here (ctrl+D to exit) >>> "
 	while True:
-		sys.stdout.write("\r{prompt}{input_string} \b".format(prompt=enter_string_prompt, input_string=input_string))
+		sys.stdout.write("\r{prompt}{input_string} \b\033[K".format(prompt=enter_string_prompt, input_string=input_string))
 		sys.stdout.flush()
 		key = getkey()
 		if key == keys.UP:
 			# HISTORY UP
-			# If not peeking, store current
-			if not history.is_peeking():
-				history.hold_current(input_string)
+			currently_peeking = history.is_peeking()
 			peek_value = history.peek_older()
 			if peek_value is not None:
+				# If not peeking, store current
+				if not currently_peeking:
+					history.hold_current(input_string)
 				input_string = peek_value
 			continue
 		elif key == keys.DOWN:
 			# HISTORY DOWN
-			input_string = history.peek_newer()
+			peek_value = history.peek_newer()
+			if peek_value is not None:
+				if peek_value != input_string:
+					input_string = peek_value 
 		elif key == keys.BACKSPACE:
 			# DELETE LAST
 			if len(input_string) > 0:
@@ -170,6 +174,15 @@ def main():
 				continue
 			# Append to current input
 			input_string += clipboard
+		# elif key == keys.CTRL_DELETE:
+		# 	# Delete by word
+		# 	if len(input_string) > 0:
+		# 		input_string = input_string.rsplit(" ", 1)[0] + " "
+		# 		if input_string == " ":
+		# 			input_string = ""
+		elif key == keys.CTRL_D or key == keys.ESC or key == keys.CTRL_C:
+			print "\nQuitting..."
+			sys.exit(0)
 		elif key == keys.ENTER:
 			# PROCESS
 			if len(input_string) == 0:
@@ -180,14 +193,29 @@ def main():
 			output = add_format(input_string, copy_to_clipboard=True)
 			print "Success! Just paste somewhere"
 			input_string = ""
-			continue
 		elif key == keys.LEFT or key == keys.RIGHT:
-			continue
+			pass
 		else:
+			# Remove tildes
+			if key in u"áãâàä":
+				key = "a"
+			elif key in u"éẽêèë":
+				key = "e"
+			elif key in u"íĩîìï":
+				key = "i"
+			elif key in u"óõôòö":
+				key = "o"
+			elif key in u"úũûùü":
+				key = "u"
+			else:
+				pass
+
 			try:
 				key = key.decode("ascii")
 			except UnicodeDecodeError as e:
 				# Weird symbol, just ignore
+				continue
+			except UnicodeEncodeError as e:
 				continue
 			# Normal character
 			input_string += key
@@ -199,8 +227,6 @@ if __name__ == "__main__":
 
 """
 TODO: 
-	- Fix tildes
-	- Add history (bash-like)
 	- Randomize format selection
 	- Add extra fuck-up
 		* Uppercases
